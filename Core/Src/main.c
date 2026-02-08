@@ -43,6 +43,8 @@
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
+uint8_t rx_byte;
+volatile uint8_t rx_flag=0;
 
 /* USER CODE END PV */
 
@@ -90,8 +92,8 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  uint8_t msg[]="sumed sreedhar\r\n";
-  HAL_Delay(2000);
+  HAL_UART_Receive_IT(&huart2, &rx_byte, 1);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -99,10 +101,11 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-	  HAL_UART_Transmit(&huart2, msg, sizeof(msg)-1, HAL_MAX_DELAY);
-
-	  HAL_Delay(1000);
-
+	  if(rx_flag)
+	  {
+		  rx_flag=0;
+		  HAL_UART_Transmit(&huart2, &rx_byte, 1, HAL_MAX_DELAY);
+	  }
 
     /* USER CODE BEGIN 3 */
   }
@@ -229,6 +232,14 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+	if(huart->Instance==USART2)
+	{
+		rx_flag=1;
+		HAL_UART_Receive_IT(&huart2, &rx_byte, 1);
+	}
+}
 
 /* USER CODE END 4 */
 
