@@ -21,6 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include<string.h>
 
 /* USER CODE END Includes */
 
@@ -43,8 +44,11 @@
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
+#define RX_BUFFER_SIZE 64
+uint8_t rx_buf[RX_BUFFER_SIZE];
+volatile uint8_t rx_idx=0;
+volatile uint8_t cmd_ready=0;
 uint8_t rx_byte;
-volatile uint8_t rx_flag=0;
 
 /* USER CODE END PV */
 
@@ -101,10 +105,13 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-	  if(rx_flag)
+	  if(cmd_ready)
 	  {
-		  rx_flag=0;
-		  HAL_UART_Transmit(&huart2, &rx_byte, 1, HAL_MAX_DELAY);
+		  cmd_ready=0;
+		  HAL_UART_Transmit(&huart2, rx_buf, strlen((char *)rx_buf), HAL_MAX_DELAY);
+
+		  uint8_t newline[]="\r\n";
+		  HAL_UART_Transmit(&huart2, newline, 2, HAL_MAX_DELAY);
 	  }
 
     /* USER CODE BEGIN 3 */
@@ -236,7 +243,27 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	if(huart->Instance==USART2)
 	{
-		rx_flag=1;
+		if(!cmd_ready)
+		{
+			if(rx_byte=='\n' || rx_byte=='\r')
+			{
+				rx_buf[rx_idx]='\0';
+				cmd_ready=1;
+				rx_idx=0;
+			}
+			else
+			{
+				if(rx_idx < RX_BUFFER_SIZE-1)
+				{
+					rx_buf[rx_idx]=rx_byte;
+					rx_idx++;
+				}
+				else
+				{
+					rx_idx=0;
+				}
+			}
+		}
 		HAL_UART_Receive_IT(&huart2, &rx_byte, 1);
 	}
 }
@@ -265,7 +292,7 @@ void Error_Handler(void)
   * @param  line: assert_param error line source number
   * @retval None
   */
-void assert_failed(uint8_t *file, uint32_t line)
+void assert_failed(uint8_t *file, uint32x_t line)
 {
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
