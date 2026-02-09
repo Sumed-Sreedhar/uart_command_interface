@@ -49,6 +49,7 @@ uint8_t rx_buf[RX_BUFFER_SIZE];
 volatile uint8_t rx_idx=0;
 volatile uint8_t cmd_ready=0;
 uint8_t rx_byte;
+volatile uint8_t enter_flag=0;
 
 /* USER CODE END PV */
 
@@ -108,10 +109,44 @@ int main(void)
 	  if(cmd_ready)
 	  {
 		  cmd_ready=0;
-		  HAL_UART_Transmit(&huart2, rx_buf, strlen((char *)rx_buf), HAL_MAX_DELAY);
+		  if(enter_flag)
+		  {
+			  enter_flag=0;
+			  uint8_t help[]="Type help to see commands:\r\n";
+			  HAL_UART_Transmit(&huart2, help, sizeof(help)-1, HAL_MAX_DELAY);
+			  continue;
+		  }
+		  if(strcmp((char *)rx_buf, "6")==0)
+		  {
+			  uint8_t msg[]="67;)\r\n";
+			  HAL_UART_Transmit(&huart2, msg, sizeof(msg)-1, HAL_MAX_DELAY);
 
-		  uint8_t newline[]="\r\n";
-		  HAL_UART_Transmit(&huart2, newline, 2, HAL_MAX_DELAY);
+		  }
+		  else if(strcmp((char *)rx_buf, "help")==0)
+		  {
+			  uint8_t msg[]="Commands:\r\n"
+					  "6\r\n"
+					  "led on\r\n"
+					  "led off\r\n";
+			  HAL_UART_Transmit(&huart2, msg, sizeof(msg)-1, HAL_MAX_DELAY);
+		  }
+		  else if(strcmp((char *)rx_buf, "led on")==0)
+		  {
+			  HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_SET);
+			  uint8_t msg[]="LED ON\r\n";
+			  HAL_UART_Transmit(&huart2, msg, sizeof(msg)-1,HAL_MAX_DELAY);
+		  }
+		  else if(strcmp((char *)rx_buf, "led off")==0)
+		  {
+			  HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_RESET);
+			  uint8_t msg[]="LED OFF\r\n";
+			  HAL_UART_Transmit(&huart2, msg, sizeof(msg)-1,HAL_MAX_DELAY);
+		  }
+		  else
+		  {
+			  uint8_t msg[]="ERROR\r\n";
+			  HAL_UART_Transmit(&huart2, msg, sizeof(msg)-1,HAL_MAX_DELAY);
+		  }
 	  }
 
     /* USER CODE BEGIN 3 */
@@ -247,6 +282,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		{
 			if(rx_byte=='\n' || rx_byte=='\r')
 			{
+				if(rx_idx==0)
+				{
+					enter_flag=1;
+				}
 				rx_buf[rx_idx]='\0';
 				cmd_ready=1;
 				rx_idx=0;
@@ -292,7 +331,7 @@ void Error_Handler(void)
   * @param  line: assert_param error line source number
   * @retval None
   */
-void assert_failed(uint8_t *file, uint32x_t line)
+void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
